@@ -74,10 +74,12 @@ def compare_dtypes(before_df, after_df):
     return report
 
 
-def save_type_conversion_report(report, report_path="output/type_conversion_report.json"):
+def save_dtype_report(report):
     """
     Save the type conversion report to disk.
     """
+
+    report_path = "output/type_conversion_report.json"
 
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
 

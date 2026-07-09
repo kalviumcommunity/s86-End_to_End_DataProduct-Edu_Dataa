@@ -4,7 +4,7 @@ from enforce_types import (
     convert_boolean,
     convert_currency,
     convert_dates,
-    save_type_conversion_report,
+    save_dtype_report,
 )
 from output import output_results
 from profile import (
@@ -74,7 +74,7 @@ def main():
         df = convert_boolean(df, column)
 
     type_report = compare_dtypes(before_type_df, df)
-    save_type_conversion_report(type_report, TYPE_REPORT_FILE)
+    save_dtype_report(type_report)
 
     encoding_result = detect_encoding(INPUT_FILE)
     statistics = dataset_statistics(INPUT_FILE, df)
