@@ -1,4 +1,11 @@
 from ingest import document_ingestion, ingest_data
+from enforce_types import (
+    compare_dtypes,
+    convert_boolean,
+    convert_currency,
+    convert_dates,
+    save_type_conversion_report,
+)
 from output import output_results
 from profile import (
     identify_quality_issues,
@@ -21,7 +28,11 @@ from validate import (
 INPUT_FILE = "data/raw/sample.csv"
 OUTPUT_FILE = "data/processed/cleaned_sample.csv"
 REPORT_FILE = "output/intake_report.json"
+TYPE_REPORT_FILE = "output/type_conversion_report.json"
 REQUIRED_COLUMNS = []
+DATE_COLUMNS = ["transaction_date"]
+CURRENCY_COLUMNS = ["amount"]
+BOOLEAN_COLUMNS = ["is_active"]
 
 
 def main():
@@ -50,6 +61,20 @@ def main():
     stats = profile_numerical(df)
     issues = identify_quality_issues(df)
     save_profile(profile, stats, issues)
+
+    before_type_df = df.copy()
+
+    for column in DATE_COLUMNS:
+        df = convert_dates(df, column)
+
+    for column in CURRENCY_COLUMNS:
+        df = convert_currency(df, column)
+
+    for column in BOOLEAN_COLUMNS:
+        df = convert_boolean(df, column)
+
+    type_report = compare_dtypes(before_type_df, df)
+    save_type_conversion_report(type_report, TYPE_REPORT_FILE)
 
     encoding_result = detect_encoding(INPUT_FILE)
     statistics = dataset_statistics(INPUT_FILE, df)
