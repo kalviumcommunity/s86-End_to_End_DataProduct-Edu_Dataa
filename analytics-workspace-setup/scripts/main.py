@@ -1,4 +1,4 @@
-from ingest import ingest_data
+from ingest import document_ingestion, ingest_data
 from output import output_results
 from process import process_data
 from validate import (
@@ -34,6 +34,7 @@ def main():
         raise ValueError(format_message)
 
     df = ingest_data(INPUT_FILE)
+    document_ingestion(df, INPUT_FILE)
 
     schema_ok, schema_message = validate_schema(df, REQUIRED_COLUMNS)
     if not schema_ok:
