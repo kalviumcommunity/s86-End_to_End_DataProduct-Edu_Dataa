@@ -15,6 +15,13 @@ from missing_values import (
     generate_imputation_report,
     save_imputation_report,
 )
+from duplicates import (
+    analyze_duplicates,
+    compare_before_after,
+    deduplicate_records,
+    save_deduplication_report,
+    save_duplicate_audit,
+)
 from output import output_results
 from profile import (
     identify_quality_issues,
@@ -39,6 +46,8 @@ OUTPUT_FILE = "data/processed/cleaned_sample.csv"
 REPORT_FILE = "output/intake_report.json"
 TYPE_REPORT_FILE = "output/type_conversion_report.json"
 IMPUTATION_REPORT_FILE = "output/imputation_report.json"
+DEDUPLICATION_REPORT_FILE = "output/deduplication_report.json"
+REMOVED_DUPLICATES_AUDIT_FILE = "output/removed_duplicates_audit.csv"
 REQUIRED_COLUMNS = []
 DATE_COLUMNS = ["transaction_date"]
 CURRENCY_COLUMNS = ["amount"]
@@ -47,6 +56,8 @@ NUMERIC_IMPUTE_COLUMNS = ["amount"]
 CATEGORICAL_IMPUTE_COLUMNS = ["segment"]
 TIME_SERIES_COLUMNS = ["transaction_date"]
 ID_COLUMNS = ["customer_id"]
+DEDUPLICATION_KEY_COLUMNS = ["customer_id", "transaction_date"]
+DEDUPLICATION_KEEP = "first"
 
 
 def main():
@@ -110,6 +121,28 @@ def main():
         after_missing_report,
     )
     save_imputation_report(imputation_report, IMPUTATION_REPORT_FILE)
+
+    before_deduplication_df = df.copy()
+    duplicate_analysis = analyze_duplicates(df, DEDUPLICATION_KEY_COLUMNS)
+    df, removed_duplicates = deduplicate_records(
+        df,
+        key_columns=DEDUPLICATION_KEY_COLUMNS,
+        keep=DEDUPLICATION_KEEP,
+    )
+    deduplication_comparison = compare_before_after(
+        before_deduplication_df,
+        df,
+    )
+    save_duplicate_audit(removed_duplicates, REMOVED_DUPLICATES_AUDIT_FILE)
+    save_deduplication_report(
+        {
+            "duplicate_analysis": duplicate_analysis,
+            "deduplication_comparison": deduplication_comparison,
+            "key_columns": DEDUPLICATION_KEY_COLUMNS,
+            "keep_strategy": DEDUPLICATION_KEEP,
+        },
+        DEDUPLICATION_REPORT_FILE,
+    )
 
     encoding_result = detect_encoding(INPUT_FILE)
     statistics = dataset_statistics(INPUT_FILE, df)
