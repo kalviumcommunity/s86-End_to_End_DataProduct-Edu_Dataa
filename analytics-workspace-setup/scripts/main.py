@@ -6,6 +6,15 @@ from enforce_types import (
     convert_dates,
     save_dtype_report,
 )
+from missing_values import (
+    analyze_missing,
+    drop_missing_ids,
+    fill_categorical_mode,
+    fill_numeric_median,
+    forward_fill,
+    generate_imputation_report,
+    save_imputation_report,
+)
 from output import output_results
 from profile import (
     identify_quality_issues,
@@ -29,10 +38,15 @@ INPUT_FILE = "data/raw/sample.csv"
 OUTPUT_FILE = "data/processed/cleaned_sample.csv"
 REPORT_FILE = "output/intake_report.json"
 TYPE_REPORT_FILE = "output/type_conversion_report.json"
+IMPUTATION_REPORT_FILE = "output/imputation_report.json"
 REQUIRED_COLUMNS = []
 DATE_COLUMNS = ["transaction_date"]
 CURRENCY_COLUMNS = ["amount"]
 BOOLEAN_COLUMNS = ["is_active"]
+NUMERIC_IMPUTE_COLUMNS = ["amount"]
+CATEGORICAL_IMPUTE_COLUMNS = ["segment"]
+TIME_SERIES_COLUMNS = ["transaction_date"]
+ID_COLUMNS = ["customer_id"]
 
 
 def main():
@@ -75,6 +89,27 @@ def main():
 
     type_report = compare_dtypes(before_type_df, df)
     save_dtype_report(type_report)
+
+    before_missing_report = analyze_missing(df)
+
+    for column in NUMERIC_IMPUTE_COLUMNS:
+        df = fill_numeric_median(df, column)
+
+    for column in CATEGORICAL_IMPUTE_COLUMNS:
+        df = fill_categorical_mode(df, column)
+
+    for column in TIME_SERIES_COLUMNS:
+        df = forward_fill(df, column)
+
+    for column in ID_COLUMNS:
+        df = drop_missing_ids(df, column)
+
+    after_missing_report = analyze_missing(df)
+    imputation_report = generate_imputation_report(
+        before_missing_report,
+        after_missing_report,
+    )
+    save_imputation_report(imputation_report, IMPUTATION_REPORT_FILE)
 
     encoding_result = detect_encoding(INPUT_FILE)
     statistics = dataset_statistics(INPUT_FILE, df)
