@@ -49,11 +49,16 @@ def convert_boolean(df, column):
             "no": False,
             "Yes": True,
             "No": False,
+            "true": True,
+            "false": False,
+            "True": True,
+            "False": False,
             True: True,
             False: False,
         }
 
-        df[column] = df[column].map(mapping)
+        normalized_values = df[column].astype(str).str.strip().str.lower()
+        df[column] = normalized_values.map(mapping)
 
     return df
 
