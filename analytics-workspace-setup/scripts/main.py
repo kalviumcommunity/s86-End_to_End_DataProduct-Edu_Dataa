@@ -1,5 +1,11 @@
 from ingest import document_ingestion, ingest_data
 from output import output_results
+from profile import (
+    identify_quality_issues,
+    profile_nulls_and_duplicates,
+    profile_numerical,
+    save_profile,
+)
 from process import process_data
 from validate import (
     build_validation_report,
@@ -39,6 +45,11 @@ def main():
     schema_ok, schema_message = validate_schema(df, REQUIRED_COLUMNS)
     if not schema_ok:
         raise ValueError(schema_message)
+
+    profile = profile_nulls_and_duplicates(df)
+    stats = profile_numerical(df)
+    issues = identify_quality_issues(df)
+    save_profile(profile, stats, issues)
 
     encoding_result = detect_encoding(INPUT_FILE)
     statistics = dataset_statistics(INPUT_FILE, df)
