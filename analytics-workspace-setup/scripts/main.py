@@ -22,6 +22,12 @@ from .duplicates import (
     save_deduplication_report,
     save_duplicate_audit,
 )
+from .datetime_transform import (
+    add_datetime_features,
+    convert_to_datetime,
+    resample_time_series,
+    save_datetime_report,
+)
 from .output import output_results
 from .profile import (
     identify_quality_issues,
@@ -48,6 +54,8 @@ TYPE_REPORT_FILE = "output/type_conversion_report.json"
 IMPUTATION_REPORT_FILE = "output/imputation_report.json"
 DEDUPLICATION_REPORT_FILE = "output/deduplication_report.json"
 REMOVED_DUPLICATES_AUDIT_FILE = "output/removed_duplicates_audit.csv"
+DATETIME_REPORT_FILE = "output/datetime_transformation_report.json"
+WEEKLY_SUMMARY_FILE = "output/weekly_transaction_summary.csv"
 REQUIRED_COLUMNS = []
 DATE_COLUMNS = ["transaction_date"]
 CURRENCY_COLUMNS = ["amount"]
@@ -91,6 +99,8 @@ def main():
 
     for column in DATE_COLUMNS:
         df = convert_dates(df, column)
+        df = convert_to_datetime(df, column)
+        df = add_datetime_features(df, column)
 
     for column in CURRENCY_COLUMNS:
         df = convert_currency(df, column)
@@ -142,6 +152,31 @@ def main():
             "keep_strategy": DEDUPLICATION_KEEP,
         },
         DEDUPLICATION_REPORT_FILE,
+    )
+
+    weekly_summary = resample_time_series(
+        df,
+        "transaction_date",
+        "amount",
+        frequency="W",
+    )
+    weekly_summary.to_csv(WEEKLY_SUMMARY_FILE, index=True)
+    save_datetime_report(
+        {
+            "datetime_columns": DATE_COLUMNS,
+            "feature_columns": [
+                "transaction_date_day_of_week",
+                "transaction_date_day_of_week_num",
+                "transaction_date_hour",
+                "transaction_date_week_num",
+                "transaction_date_month",
+                "transaction_date_quarter",
+                "transaction_date_days_since_event",
+            ],
+            "weekly_summary_rows": int(len(weekly_summary)),
+            "weekly_summary_file": WEEKLY_SUMMARY_FILE,
+        },
+        DATETIME_REPORT_FILE,
     )
 
     encoding_result = detect_encoding(INPUT_FILE)
