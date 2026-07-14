@@ -1,12 +1,12 @@
-from ingest import document_ingestion, ingest_data
-from enforce_types import (
+from .ingest import document_ingestion, ingest_data
+from .enforce_types import (
     compare_dtypes,
     convert_boolean,
     convert_currency,
     convert_dates,
     save_dtype_report,
 )
-from missing_values import (
+from .missing_values import (
     analyze_missing,
     drop_missing_ids,
     fill_categorical_mode,
@@ -15,22 +15,22 @@ from missing_values import (
     generate_imputation_report,
     save_imputation_report,
 )
-from duplicates import (
+from .duplicates import (
     analyze_duplicates,
     compare_before_after,
     deduplicate_records,
     save_deduplication_report,
     save_duplicate_audit,
 )
-from output import output_results
-from profile import (
+from .output import output_results
+from .profile import (
     identify_quality_issues,
     profile_nulls_and_duplicates,
     profile_numerical,
     save_profile,
 )
-from process import process_data
-from validate import (
+from .process import process_data
+from .validate import (
     build_validation_report,
     dataset_statistics,
     detect_encoding,
