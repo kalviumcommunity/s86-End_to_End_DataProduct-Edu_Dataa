@@ -1,20 +1,42 @@
-from ingest import document_ingestion, ingest_data
-from enforce_types import (
+from .ingest import document_ingestion, ingest_data
+from .enforce_types import (
     compare_dtypes,
     convert_boolean,
     convert_currency,
     convert_dates,
     save_dtype_report,
 )
-from output import output_results
-from profile import (
+from .missing_values import (
+    analyze_missing,
+    drop_missing_ids,
+    fill_categorical_mode,
+    fill_numeric_median,
+    forward_fill,
+    generate_imputation_report,
+    save_imputation_report,
+)
+from .duplicates import (
+    analyze_duplicates,
+    compare_before_after,
+    deduplicate_records,
+    save_deduplication_report,
+    save_duplicate_audit,
+)
+from .datetime_transform import (
+    add_datetime_features,
+    convert_to_datetime,
+    resample_time_series,
+    save_datetime_report,
+)
+from .output import output_results
+from .profile import (
     identify_quality_issues,
     profile_nulls_and_duplicates,
     profile_numerical,
     save_profile,
 )
-from process import process_data
-from validate import (
+from .process import process_data
+from .validate import (
     build_validation_report,
     dataset_statistics,
     detect_encoding,
@@ -29,10 +51,21 @@ INPUT_FILE = "data/raw/sample.csv"
 OUTPUT_FILE = "data/processed/cleaned_sample.csv"
 REPORT_FILE = "output/intake_report.json"
 TYPE_REPORT_FILE = "output/type_conversion_report.json"
+IMPUTATION_REPORT_FILE = "output/imputation_report.json"
+DEDUPLICATION_REPORT_FILE = "output/deduplication_report.json"
+REMOVED_DUPLICATES_AUDIT_FILE = "output/removed_duplicates_audit.csv"
+DATETIME_REPORT_FILE = "output/datetime_transformation_report.json"
+WEEKLY_SUMMARY_FILE = "output/weekly_transaction_summary.csv"
 REQUIRED_COLUMNS = []
 DATE_COLUMNS = ["transaction_date"]
 CURRENCY_COLUMNS = ["amount"]
 BOOLEAN_COLUMNS = ["is_active"]
+NUMERIC_IMPUTE_COLUMNS = ["amount"]
+CATEGORICAL_IMPUTE_COLUMNS = ["segment"]
+TIME_SERIES_COLUMNS = ["transaction_date"]
+ID_COLUMNS = ["customer_id"]
+DEDUPLICATION_KEY_COLUMNS = ["customer_id", "transaction_date"]
+DEDUPLICATION_KEEP = "first"
 
 
 def main():
@@ -66,6 +99,8 @@ def main():
 
     for column in DATE_COLUMNS:
         df = convert_dates(df, column)
+        df = convert_to_datetime(df, column)
+        df = add_datetime_features(df, column)
 
     for column in CURRENCY_COLUMNS:
         df = convert_currency(df, column)
@@ -75,6 +110,74 @@ def main():
 
     type_report = compare_dtypes(before_type_df, df)
     save_dtype_report(type_report)
+
+    before_missing_report = analyze_missing(df)
+
+    for column in NUMERIC_IMPUTE_COLUMNS:
+        df = fill_numeric_median(df, column)
+
+    for column in CATEGORICAL_IMPUTE_COLUMNS:
+        df = fill_categorical_mode(df, column)
+
+    for column in TIME_SERIES_COLUMNS:
+        df = forward_fill(df, column)
+
+    for column in ID_COLUMNS:
+        df = drop_missing_ids(df, column)
+
+    after_missing_report = analyze_missing(df)
+    imputation_report = generate_imputation_report(
+        before_missing_report,
+        after_missing_report,
+    )
+    save_imputation_report(imputation_report, IMPUTATION_REPORT_FILE)
+
+    before_deduplication_df = df.copy()
+    duplicate_analysis = analyze_duplicates(df, DEDUPLICATION_KEY_COLUMNS)
+    df, removed_duplicates = deduplicate_records(
+        df,
+        key_columns=DEDUPLICATION_KEY_COLUMNS,
+        keep=DEDUPLICATION_KEEP,
+    )
+    deduplication_comparison = compare_before_after(
+        before_deduplication_df,
+        df,
+    )
+    save_duplicate_audit(removed_duplicates, REMOVED_DUPLICATES_AUDIT_FILE)
+    save_deduplication_report(
+        {
+            "duplicate_analysis": duplicate_analysis,
+            "deduplication_comparison": deduplication_comparison,
+            "key_columns": DEDUPLICATION_KEY_COLUMNS,
+            "keep_strategy": DEDUPLICATION_KEEP,
+        },
+        DEDUPLICATION_REPORT_FILE,
+    )
+
+    weekly_summary = resample_time_series(
+        df,
+        "transaction_date",
+        "amount",
+        frequency="W",
+    )
+    weekly_summary.to_csv(WEEKLY_SUMMARY_FILE, index=True)
+    save_datetime_report(
+        {
+            "datetime_columns": DATE_COLUMNS,
+            "feature_columns": [
+                "transaction_date_day_of_week",
+                "transaction_date_day_of_week_num",
+                "transaction_date_hour",
+                "transaction_date_week_num",
+                "transaction_date_month",
+                "transaction_date_quarter",
+                "transaction_date_days_since_event",
+            ],
+            "weekly_summary_rows": int(len(weekly_summary)),
+            "weekly_summary_file": WEEKLY_SUMMARY_FILE,
+        },
+        DATETIME_REPORT_FILE,
+    )
 
     encoding_result = detect_encoding(INPUT_FILE)
     statistics = dataset_statistics(INPUT_FILE, df)
