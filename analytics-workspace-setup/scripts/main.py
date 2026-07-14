@@ -29,6 +29,11 @@ from .datetime_transform import (
     save_datetime_report,
 )
 from .outlier_detection import apply_outlier_strategy, save_outlier_report
+from .consistency_validation import (
+    run_validation_rules,
+    save_validation_failures,
+    save_validation_report,
+)
 from .output import output_results
 from .profile import (
     identify_quality_issues,
@@ -58,6 +63,8 @@ REMOVED_DUPLICATES_AUDIT_FILE = "output/removed_duplicates_audit.csv"
 DATETIME_REPORT_FILE = "output/datetime_transformation_report.json"
 WEEKLY_SUMMARY_FILE = "output/weekly_transaction_summary.csv"
 OUTLIER_REPORT_FILE = "output/outlier_detection_report.json"
+VALIDATION_REPORT_FILE = "output/validation_report.json"
+VALIDATION_FAILURES_FILE = "output/validation_failures.csv"
 REQUIRED_COLUMNS = []
 DATE_COLUMNS = ["transaction_date"]
 CURRENCY_COLUMNS = ["amount"]
@@ -176,6 +183,10 @@ def main():
         },
         OUTLIER_REPORT_FILE,
     )
+
+    df, validation_failures, validation_report = run_validation_rules(df)
+    save_validation_failures(validation_failures, VALIDATION_FAILURES_FILE)
+    save_validation_report(validation_report, VALIDATION_REPORT_FILE)
 
     weekly_summary = resample_time_series(
         df,
