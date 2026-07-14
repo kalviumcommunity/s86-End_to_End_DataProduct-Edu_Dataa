@@ -1,3 +1,5 @@
+import os
+
 from .ingest import document_ingestion, ingest_data
 from .enforce_types import (
     compare_dtypes,
@@ -34,6 +36,11 @@ from .consistency_validation import (
     save_validation_failures,
     save_validation_report,
 )
+from .join_validation import (
+    save_join_validation_report,
+    save_unmatched_records,
+    validate_join,
+)
 from .output import output_results
 from .profile import (
     identify_quality_issues,
@@ -65,6 +72,12 @@ WEEKLY_SUMMARY_FILE = "output/weekly_transaction_summary.csv"
 OUTLIER_REPORT_FILE = "output/outlier_detection_report.json"
 VALIDATION_REPORT_FILE = "output/validation_report.json"
 VALIDATION_FAILURES_FILE = "output/validation_failures.csv"
+JOIN_VALIDATION_REPORT_FILE = "output/join_validation_report.json"
+UNMATCHED_LEFT_FILE = "output/unmatched_left_records.csv"
+UNMATCHED_RIGHT_FILE = "output/unmatched_right_records.csv"
+JOIN_SOURCE_FILE = "data/raw/reference.csv"
+JOIN_KEY_COLUMNS = ["customer_id"]
+JOIN_TYPE = "left"
 REQUIRED_COLUMNS = []
 DATE_COLUMNS = ["transaction_date"]
 CURRENCY_COLUMNS = ["amount"]
@@ -187,6 +200,34 @@ def main():
     df, validation_failures, validation_report = run_validation_rules(df)
     save_validation_failures(validation_failures, VALIDATION_FAILURES_FILE)
     save_validation_report(validation_report, VALIDATION_REPORT_FILE)
+
+    if os.path.exists(JOIN_SOURCE_FILE):
+        secondary_df = ingest_data(JOIN_SOURCE_FILE)
+        merged_df, join_report, unmatched_left, unmatched_right = validate_join(
+            df,
+            secondary_df,
+            JOIN_KEY_COLUMNS,
+            join_type=JOIN_TYPE,
+        )
+        save_unmatched_records(
+            unmatched_left,
+            unmatched_right,
+            UNMATCHED_LEFT_FILE,
+            UNMATCHED_RIGHT_FILE,
+        )
+        save_join_validation_report(join_report, JOIN_VALIDATION_REPORT_FILE)
+        df = merged_df
+    else:
+        save_join_validation_report(
+            {
+                "join_type": JOIN_TYPE,
+                "key_columns": JOIN_KEY_COLUMNS,
+                "source_file": JOIN_SOURCE_FILE,
+                "status": "skipped",
+                "reason": "Secondary source file not present in the workspace.",
+            },
+            JOIN_VALIDATION_REPORT_FILE,
+        )
 
     weekly_summary = resample_time_series(
         df,
