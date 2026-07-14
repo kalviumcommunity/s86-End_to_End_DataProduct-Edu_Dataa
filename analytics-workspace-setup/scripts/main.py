@@ -28,6 +28,7 @@ from .datetime_transform import (
     resample_time_series,
     save_datetime_report,
 )
+from .outlier_detection import apply_outlier_strategy, save_outlier_report
 from .output import output_results
 from .profile import (
     identify_quality_issues,
@@ -56,6 +57,7 @@ DEDUPLICATION_REPORT_FILE = "output/deduplication_report.json"
 REMOVED_DUPLICATES_AUDIT_FILE = "output/removed_duplicates_audit.csv"
 DATETIME_REPORT_FILE = "output/datetime_transformation_report.json"
 WEEKLY_SUMMARY_FILE = "output/weekly_transaction_summary.csv"
+OUTLIER_REPORT_FILE = "output/outlier_detection_report.json"
 REQUIRED_COLUMNS = []
 DATE_COLUMNS = ["transaction_date"]
 CURRENCY_COLUMNS = ["amount"]
@@ -152,6 +154,27 @@ def main():
             "keep_strategy": DEDUPLICATION_KEEP,
         },
         DEDUPLICATION_REPORT_FILE,
+    )
+
+    df, outlier_report = apply_outlier_strategy(
+        df,
+        "amount",
+        strategy="cap",
+        detector="iqr",
+    )
+    save_outlier_report(
+        {
+            "cleaning_rules": [
+                {
+                    "column": "amount",
+                    "detector": "iqr",
+                    "strategy": "cap",
+                    "reason": "Preserve rows while limiting extreme values that can distort summary statistics.",
+                }
+            ],
+            "steps": [outlier_report],
+        },
+        OUTLIER_REPORT_FILE,
     )
 
     weekly_summary = resample_time_series(
