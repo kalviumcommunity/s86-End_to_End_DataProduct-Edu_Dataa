@@ -41,6 +41,12 @@ from .join_validation import (
     save_unmatched_records,
     validate_join,
 )
+from .feature_engineering import (
+    build_customer_feature_table,
+    merge_feature_table,
+    save_feature_report,
+    save_feature_table,
+)
 from .output import output_results
 from .profile import (
     identify_quality_issues,
@@ -78,6 +84,8 @@ UNMATCHED_RIGHT_FILE = "output/unmatched_right_records.csv"
 JOIN_SOURCE_FILE = "data/raw/reference.csv"
 JOIN_KEY_COLUMNS = ["customer_id"]
 JOIN_TYPE = "left"
+FEATURE_TABLE_FILE = "output/derived_customer_features.csv"
+FEATURE_REPORT_FILE = "output/feature_engineering_report.json"
 REQUIRED_COLUMNS = []
 DATE_COLUMNS = ["transaction_date"]
 CURRENCY_COLUMNS = ["amount"]
@@ -228,6 +236,11 @@ def main():
             },
             JOIN_VALIDATION_REPORT_FILE,
         )
+
+    feature_table, feature_report = build_customer_feature_table(df)
+    save_feature_table(feature_table, FEATURE_TABLE_FILE)
+    save_feature_report(feature_report, FEATURE_REPORT_FILE)
+    df = merge_feature_table(df, feature_table)
 
     weekly_summary = resample_time_series(
         df,
